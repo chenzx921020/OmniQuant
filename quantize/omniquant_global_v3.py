@@ -45,12 +45,15 @@ class QuantKDTrainer(Trainer):
     #def compute_loss(self, model, inputs):
     def training_step(self, model, inputs):
         #import pdb;pdb.set_trace()
+        hooks_to_remove = []
         for name, module in model.named_modules():
             if isinstance(module, QuantLinear):
             #if isinstance(module, nn.Linear):
                 module = module.to(torch.bfloat16) #half()
-                module.register_forward_pre_hook(fp32_16_pre_hook)
-                module.register_forward_hook(fp16_32_hook)
+                h1 = module.register_forward_pre_hook(fp32_16_pre_hook)
+                h2 = module.register_forward_hook(fp16_32_hook)
+                hooks_to_remove.append(h1)
+                hooks_to_remove.append(h2)
                 module.use_temporary_parameter=False
         
         #import pdb;pdb.set_trace()
@@ -94,7 +97,9 @@ class QuantKDTrainer(Trainer):
         #import pdb;pdb.set_trace()
         self.optimizer.step()
         self.optimizer.zero_grad()
-        
+        for hook in hooks_to_remove:
+            hook.remove()
+        hooks_to_remove.clear()
         return loss.detach()
 
 def omniquant_global_v3(
@@ -153,20 +158,6 @@ def omniquant_global_v3(
         model.config.use_cache = False
         trainer.train()
 
-    # for i in range(len(model.model.layers)):
-    #     layer = model.model.layers[i]
-    #     clear_temp_variable(layer)
-    #     register_scales_and_zeros(layer)
-    #     smooth_and_quant_inplace_quantrainer(layer)
-    #     #layer = layer.float()
-    #     layer= layer.to("cpu")
-    #     torch.cuda.empty_cache()
-    #     gc.collect()   
-    # model.to(torch.float16)
-    for name, module in model.named_modules():
-        if isinstance(module, QuantLinear):
-            del module._forward_pre_hooks
-            del module._forward_hooks
     for i in range(len(model.model.layers)):
         layer = model.model.layers[i]
         clear_temp_variable(layer)

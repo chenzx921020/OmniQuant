@@ -224,6 +224,7 @@ def main():
     parser.add_argument("--disable_zero_point",default=False, action="store_true", help="quantization without zero_point")
     parser.add_argument("--a_dynamic_method", type=str, default="per_token", choices=["per_token"])
     parser.add_argument("--w_dynamic_method", type=str, default="per_channel", choices=["per_channel"])
+    parser.add_argument("--train_mode",type=str,default="layer_global_ft",choices=["layer_global_ft", "layer_by_layer", "global_ft"])
     parser.add_argument("--limit", type=int, default=-1)
     parser.add_argument("--multigpu", action="store_true", help="at eval, map model to multiple gpus")
     parser.add_argument("--deactive_amp", action="store_true", help="deactivate AMP when 8<=bits<16")
@@ -243,19 +244,18 @@ def main():
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
 
-    # debug casually clear
-    args.model='/data01/ssd/llama2-7b-hf/'
-    args.epochs=20
-    args.output_dir='./log/llama--7b-w4a16-global_debug'
-    args.eval_ppl=True
-    args.wbits=4
-    args.abits=16
-    args.lwc=True
-    args.let=True
-    args.act_scales='./act_scales/llama2-7b.pt'
-    args.act_shifts='./act_shifts/llama2-7b.pt'
-    args.net='Llama-2-7b'
-    #os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+    # debug , casually clear
+    # args.model='/data01/ssd/llama2-7b-hf/'
+    # args.epochs=5
+    # args.output_dir='./log/llama--7b-w4a16-global_debug'
+    # args.eval_ppl=True
+    # args.wbits=4
+    # args.abits=16
+    # args.lwc=True
+    # args.let=True
+    # args.act_scales='./act_scales/llama2-7b.pt'
+    # args.act_shifts='./act_shifts/llama2-7b.pt'
+    # args.net='Llama-2-7b'
     # check
     if args.epochs > 0:
         assert args.lwc or args.let
@@ -359,45 +359,51 @@ def main():
         if args.let:
             act_scales = torch.load(args.act_scales)
             act_shifts = torch.load(args.act_shifts)
-        # omniquant(
-        #     lm,
-        #     args,
-        #     dataloader,
-        #     act_scales,
-        #     act_shifts,
-        #     logger,
-        # )
-        args.epochs=2
-        args.let_lr=5e-3
-        args.lwc_lr=1e-2
-        omniquant_global_v2(
-            lm,
-            args,
-            dataloader,
-            act_scales,
-            act_shifts,
-            logger,
-        )
-        
-        # omniquant_nofuse(
-        #     lm,
-        #     args,
-        #     dataloader,
-        #     act_scales,
-        #     act_shifts,
-        #     logger,
-        # )
-        # args.epochs=5
-        # args.let_lr=5e-6
-        # args.lwc_lr=3e-5
-        # omniquant_global_v3(
-        #     lm,
-        #     args,
-        #     dataloader,
-        #     act_scales,
-        #     act_shifts,
-        #     logger,
-        # )
+        if args.train_mode ==  "layer_by_layer": 
+            print ("you choose layer_by_layer")
+            omniquant(
+                lm,
+                args,
+                dataloader,
+                act_scales,
+                act_shifts,
+                logger,
+            )
+        elif args.train_mode == "global_ft":
+            print ("you choose global_ft")
+            args.epochs=20
+            args.let_lr=5e-6
+            args.lwc_lr=1e-5
+            omniquant_global_v2(
+                lm,
+                args,
+                dataloader,
+                act_scales,
+                act_shifts,
+                logger,
+            )
+        elif args.train_mode =="layer_global_ft":
+            print("you choose layer_global_ft")
+            omniquant_nofuse(
+                lm,
+                args,
+                dataloader,
+                act_scales,
+                act_shifts,
+                logger,
+            )
+            args.epochs=10
+            args.let_lr=5e-5
+            args.lwc_lr=1e-4
+            args.wd = 1e-5
+            omniquant_global_v3(
+                lm,
+                args,
+                dataloader,
+                act_scales,
+                act_shifts,
+                logger,
+            )
         logger.info(time.time() - tick)
     if args.save_dir:
         # delete omni parameters
