@@ -4,7 +4,7 @@ from datasets import load_dataset
 import numpy as np
 import torch
 import random
-
+from torch.utils.data import Dataset
 
 def set_seed(seed):
     np.random.seed(seed)
@@ -193,3 +193,48 @@ def get_loaders(
         train=wiki_train+ptb_train+c4_train
         val=None
         return train,val
+
+def get_wikitext_for_trainer(tokenizer,seqlen=1024):
+    data = load_dataset(
+        "wikitext",
+        "wikitext-2-raw-v1",
+        split="train",
+    )
+    text=' '.join(data['text'])
+    import re
+    def split_into_samples(text, max_length=1024):
+        sentences = re.split(r'[.?!]', text)
+        samples = []
+        current_sample = ''
+        
+        for sentence in sentences:
+            potential_sample = current_sample + sentence
+            if len(potential_sample) <= max_length:
+                current_sample = potential_sample
+            else:
+                samples.append(current_sample.strip())
+                current_sample = sentence
+        
+        if current_sample:
+            samples.append(current_sample.strip())
+        
+        return samples
+    samples = split_into_samples(text, max_length=seqlen*10)
+    #import pdb;pdb.set_trace()
+    tokenizer.pad_token=tokenizer.eos_token
+    encoded_samples = [tokenizer.encode(sample, max_length=seqlen, pad_to_max_length=False, return_tensors='pt') for sample in samples]
+    class TextDataset(Dataset):
+        def __init__(self, encodings):
+            self.encodings = encodings
+        
+        def __len__(self):
+            return len(self.encodings)
+        
+        def __getitem__(self, idx):
+            encoded=self.encodings[idx].view(-1)
+            # input_ids = encoded['input_ids'].squeeze()
+            # encoded['input_ids'] = input_ids
+            return encoded
+
+    dataset = TextDataset(encoded_samples)
+    return dataset

@@ -11,6 +11,10 @@ from pprint import pprint
 from parallel_utils import map_layers_to_multi_gpus, get_lowest_occupied_gpu
 import torch.nn as nn
 from quantize.omniquant import omniquant
+from quantize.omniquant_global_v2 import omniquant_global_v2 
+from quantize.omniquant_global_v3 import omniquant_global_v3
+from quantize.omniquant_without_postprocess import omniquant_nofuse
+
 from tqdm import tqdm
 import utils
 from pathlib import Path
@@ -93,7 +97,7 @@ def evaluate(lm, args, logger):
 
     if args.eval_ppl:
         # for dataset in ["wikitext2", "ptb", "c4","ptb-new",'c4-new']:
-        for dataset in ["wikitext2", "c4"]:
+        for dataset in ["wikitext2"]: #, "c4"]:
             cache_testloader = f'{args.cache_dir}/testloader_{args.model_family}_{dataset}_all.cache'
             if os.path.exists(cache_testloader):
                 testloader = torch.load(cache_testloader)
@@ -209,8 +213,8 @@ def main():
     parser.add_argument("--abits", type=int, default=16)
     parser.add_argument("--group_size", type=int, default=None)
     parser.add_argument("--alpha", type=float, default=0.5)
-    parser.add_argument("--let_lr", type=float, default=5e-3)
-    parser.add_argument("--lwc_lr", type=float, default=1e-2)
+    parser.add_argument("--let_lr", type=float, default=5e-3) # 5e-3
+    parser.add_argument("--lwc_lr", type=float, default=1e-2) # 1e-2
     parser.add_argument("--wd", type=float, default=0)
     parser.add_argument("--epochs", type=int, default=10)
     parser.add_argument("--let",default=False, action="store_true",help="activate learnable equivalent transformation")
@@ -239,6 +243,19 @@ def main():
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
 
+    # debug casually clear
+    args.model='/data01/ssd/llama2-7b-hf/'
+    args.epochs=20
+    args.output_dir='./log/llama--7b-w4a16-global_debug'
+    args.eval_ppl=True
+    args.wbits=4
+    args.abits=16
+    args.lwc=True
+    args.let=True
+    args.act_scales='./act_scales/llama2-7b.pt'
+    args.act_shifts='./act_shifts/llama2-7b.pt'
+    args.net='Llama-2-7b'
+    #os.environ['CUDA_VISIBLE_DEVICES'] = '2'
     # check
     if args.epochs > 0:
         assert args.lwc or args.let
@@ -342,7 +359,18 @@ def main():
         if args.let:
             act_scales = torch.load(args.act_scales)
             act_shifts = torch.load(args.act_shifts)
-        omniquant(
+        # omniquant(
+        #     lm,
+        #     args,
+        #     dataloader,
+        #     act_scales,
+        #     act_shifts,
+        #     logger,
+        # )
+        args.epochs=2
+        args.let_lr=5e-3
+        args.lwc_lr=1e-2
+        omniquant_global_v2(
             lm,
             args,
             dataloader,
@@ -350,6 +378,26 @@ def main():
             act_shifts,
             logger,
         )
+        
+        # omniquant_nofuse(
+        #     lm,
+        #     args,
+        #     dataloader,
+        #     act_scales,
+        #     act_shifts,
+        #     logger,
+        # )
+        # args.epochs=5
+        # args.let_lr=5e-6
+        # args.lwc_lr=3e-5
+        # omniquant_global_v3(
+        #     lm,
+        #     args,
+        #     dataloader,
+        #     act_scales,
+        #     act_shifts,
+        #     logger,
+        # )
         logger.info(time.time() - tick)
     if args.save_dir:
         # delete omni parameters

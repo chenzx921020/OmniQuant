@@ -3,7 +3,7 @@ from quantize.int_linear import QuantLinear
 import torch
 from quantize.int_matmul import QuantMatMul
 from models.transformation import *
-
+from torch.utils.checkpoint import checkpoint
 
 def let_parameters(model, use_shift=True):
     params = []
@@ -99,14 +99,66 @@ def smooth_and_quant_temporary(model, args, isllama):
             if not hasattr(module, "temp_bias"):
                 module.temp_bias = module.bias
             module.use_temporary_parameter=True
-            
+
+def smooth_and_quant_temporary_quantrainer(model):
+    isllama= True
+    #model = model.half()
+    if True:
+        with torch.no_grad():
+            for name, module in model.named_parameters():
+                if "smooth_scale" in name:
+                    module.data = truncate_number(module)
+        if isllama:
+            smooth_ln_fcs_temporary(model.input_layernorm,[model.self_attn.q_proj, model.self_attn.k_proj, model.self_attn.v_proj],
+                                    model.qkv_smooth_scale,model.qkv_smooth_shift)
+            smooth_ln_fcs_temporary(model.post_attention_layernorm,[model.mlp.up_proj,model.mlp.gate_proj],
+                                    model.fc1_smooth_scale,model.fc1_smooth_shift)
+            smooth_fc_fc_temporary(model.self_attn.v_proj,model.self_attn.o_proj,
+                                model.out_smooth_scale, model.out_smooth_shift)
+            smooth_q_k_temporary(model.self_attn.q_proj, model.self_attn.k_proj,
+                                model.qkt_smooth_scale)
+            model.mlp.down_proj.temp_weight = model.mlp.down_proj.weight.data # add data
+
+        else:
+            smooth_ln_fcs_temporary(model.self_attn_layer_norm,[model.self_attn.q_proj, model.self_attn.k_proj, model.self_attn.v_proj],
+                                    model.qkv_smooth_scale,model.qkv_smooth_shift)
+            smooth_ln_fcs_temporary(model.final_layer_norm,[model.fc1],
+                                    model.fc1_smooth_scale,model.fc1_smooth_shift)
+            smooth_ln_fcs_temporary(model.self_attn.v_proj,model.self_attn.out_proj,
+                                model.out_smooth_scale, model.out_smooth_shift)
+            smooth_q_k_temporary(model.self_attn.q_proj, model.self_attn.k_proj,
+                                model.qkt_smooth_scale)
+            model.fc2.temp_weight = model.fc2.weight
+    else:
+        for name, module in model.named_modules():
+            if isinstance(module, QuantLinear):
+                module.temp_weight = module.weight
+    # quant
+    for name, module in model.named_modules():
+        if isinstance(module, QuantLinear):
+            if hasattr(module, "temp_weight"):
+                #module.temp_weight.requires_grad=True
+                if module.temp_weight.requires_grad==False:
+                    temp_weight  = checkpoint(module.weight_quantizer,module.temp_weight,use_reentrant=False)
+                    temp_weight.requires_grad=True
+                    module.temp_weight = temp_weight
+                else:
+                    module.temp_weight = checkpoint(module.weight_quantizer,module.temp_weight,use_reentrant=False)
+            else:
+                module.temp_weight = module.weight_quantizer(module.weight)
+            if not hasattr(module, "temp_bias"):
+                module.temp_bias = module.bias
+            module.use_temporary_parameter=True
+
 def clear_temp_variable(model):
     for name, module in model.named_modules():
         if isinstance(module, QuantLinear):
             if hasattr(module, "temp_weight"):
                 del module.temp_weight
+                #torch.cuda.empty_cache()
             if hasattr(module, "temp_bias"):
                 del module.temp_bias
+                #torch.cuda.empty_cache()
 
 @torch.no_grad()   
 def smooth_and_quant_inplace(model, args, isllama):
@@ -134,6 +186,36 @@ def smooth_and_quant_inplace(model, args, isllama):
         if isinstance(module, QuantLinear):
             module.weight = module.weight_quantizer(module.weight)
             module.use_temporary_parameter=False
+
+@torch.no_grad()   
+def smooth_and_quant_inplace_quantrainer(model):
+    isllama=True
+    if True:
+        for name, module in model.named_parameters():
+            if "smooth_scale" in name:
+                module.data = truncate_number(module)
+        if isllama:
+            smooth_ln_fcs_inplace(model.input_layernorm,[model.self_attn.q_proj, model.self_attn.k_proj, model.self_attn.v_proj],
+                                    model.qkv_smooth_scale,model.qkv_smooth_shift)
+            smooth_ln_fcs_inplace(model.post_attention_layernorm,[model.mlp.up_proj,model.mlp.gate_proj],
+                                    model.fc1_smooth_scale,model.fc1_smooth_shift)
+            smooth_fc_fc_inplace(model.self_attn.v_proj,model.self_attn.o_proj,
+                                model.out_smooth_scale, model.out_smooth_shift)
+        else: # opt
+            smooth_ln_fcs_inplace(model.self_attn_layer_norm,[model.self_attn.q_proj, model.self_attn.k_proj, model.self_attn.v_proj],
+                                    model.qkv_smooth_scale,model.qkv_smooth_shift)
+            smooth_ln_fcs_inplace(model.final_layer_norm,[model.fc1],
+                                    model.fc1_smooth_scale,model.fc1_smooth_shift)
+            smooth_fc_fc_inplace(model.self_attn.v_proj,model.self_attn.out_proj,
+                                model.out_smooth_scale, model.out_smooth_shift)
+        smooth_q_k_inplace(model.self_attn.q_proj, model.self_attn.k_proj,
+                            model.qkt_smooth_scale)
+    # quant
+    for name, module in model.named_modules():
+        if isinstance(module, QuantLinear):
+            module.weight = module.weight_quantizer(module.weight)
+            module.use_temporary_parameter=False
+
 
 def set_quant_state(self, weight_quant: bool = False, act_quant: bool = False):
     # setting weight quantization here does not affect actual forward pass
