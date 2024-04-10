@@ -26,6 +26,7 @@ import transformers
 from datautils import get_wikitext_for_trainer
 from torch.utils.checkpoint import checkpoint
 from utils import ampscaler_get_grad_norm
+from torch.optim import lr_scheduler
 #torch.autograd.set_detect_anomaly(True)
 
 def kl_loss(output, target, temperature):
@@ -88,7 +89,7 @@ class QuantKDTrainer(Trainer):
             # We don't use .loss here since the model may return tuples instead of ModelOutput.
             # choose loss
             loss += outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-
+        #print(f"global loss is: ",loss)
         # loss_scaler = utils.NativeScalerWithGradNormCount()
         # norm = loss_scaler(loss, self.optimizer,parameters= get_omni_parameters(model, True)).cpu()
         #loss = loss.to(torch.bfloat16)
@@ -120,7 +121,7 @@ def omniquant_global_v3(
     
     optimizer = torch.optim.AdamW(
         [{"params":let_parameters(layers, True),"lr":args.let_lr}, {"params":lwc_parameters(layers),"lr":args.lwc_lr}],weight_decay=args.wd)
-    #import pdb;pdb.set_trace()
+    #scheduler = lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8) 
     if args.epochs > 0:    
         dataset=get_wikitext_for_trainer(lm.tokenizer,seqlen=1024)
         # Freezing the original weights
@@ -141,11 +142,11 @@ def omniquant_global_v3(
             args=transformers.TrainingArguments(
                 per_device_train_batch_size=1,
                 gradient_accumulation_steps=1,
-                warmup_steps=1,
-                max_steps=args.epochs,
+                warmup_steps=100,
+                num_train_epochs= args.epochs,
                 #learning_rate=1e-6,
                 bf16=True,
-                logging_steps=10,
+                logging_steps=1069,
                 output_dir='outputs',
                 save_steps=-1,
                 #weight_decay=1e-5,

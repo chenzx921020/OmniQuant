@@ -26,6 +26,7 @@ import transformers
 from datautils import get_wikitext_for_trainer
 from torch.utils.checkpoint import checkpoint
 from utils import ampscaler_get_grad_norm
+from torch.optim import lr_scheduler
 #torch.autograd.set_detect_anomaly(True)
 
 def kl_loss(output, target, temperature):
@@ -92,6 +93,7 @@ class QuantKDTrainer(Trainer):
         # loss_scaler = utils.NativeScalerWithGradNormCount()
         # norm = loss_scaler(loss, self.optimizer,parameters= get_omni_parameters(model, True)).cpu()
         #loss = loss.to(torch.bfloat16)
+        #print(f"global loss is: ", loss)
         loss.backward()
         torch.nn.utils.clip_grad_value_(model.parameters(), clip_value=1.0)
         #import pdb;pdb.set_trace()
@@ -294,6 +296,8 @@ def omniquant_global_v2(
     #pdb.set_trace()
     optimizer = torch.optim.AdamW(
         [{"params":let_parameters(layers, True),"lr":args.let_lr}, {"params":lwc_parameters(layers),"lr":args.lwc_lr}],weight_decay=args.wd)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8) 
+    #scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=40, eta_min=1e-5)
     #import pdb;pdb.set_trace()
     if args.epochs > 0:    
         dataset=get_wikitext_for_trainer(lm.tokenizer,seqlen=1024)
@@ -315,18 +319,19 @@ def omniquant_global_v2(
             args=transformers.TrainingArguments(
                 per_device_train_batch_size=1,
                 gradient_accumulation_steps=1,
-                warmup_steps=1,
-                max_steps=args.epochs,
+                warmup_steps=100,
+                num_train_epochs= args.epochs,
+                #max_steps=args.epochs,
                 #learning_rate=1e-6,
                 bf16=True,
-                logging_steps=10,
+                logging_steps=1069,
                 output_dir='outputs',
                 save_steps=-1,
                 #weight_decay=1e-5,
             ),
             data_collator=transformers.DataCollatorForLanguageModeling(lm.tokenizer, mlm=False),
-            optimizers = (optimizer,None),
-            
+            # optimizers = (optimizer,scheduler),
+            optimizers = (optimizer,scheduler),
         )
 
         model.config.use_cache = False

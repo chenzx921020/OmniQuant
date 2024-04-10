@@ -274,7 +274,8 @@ def omniquant(
                 logger.info(f"layer {i} iter {epochs} loss:{loss_mean} norm:{norm_mean} max memory_allocated {torch.cuda.max_memory_allocated(lm._device) / 1024**2} ")
             clear_temp_variable(qlayer)
             del optimizer
-        qlayer.half() 
+        #qlayer.half()
+        qlayer=qlayer.to(dtype) # apply to deamp mode
         # real smooth and quantization
         smooth_and_quant_inplace(qlayer, args, is_llama)
         if args.epochs>0:
