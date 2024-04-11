@@ -372,10 +372,10 @@ def main():
             )
         elif args.train_mode == "global_ft":
             print ("you choose global_ft")
-            args.epochs=30
-            args.let_lr=5e-2 #5e-6
-            args.lwc_lr=1e-1 #1e-5
-            args.wd = 5e-5
+            #args.epochs=30
+            # args.let_lr=5e-2 #5e-6
+            # args.lwc_lr=1e-1 #1e-5
+            # args.wd = 5e-5
             omniquant_global_v2(
                 lm,
                 args,
