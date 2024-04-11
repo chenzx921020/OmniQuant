@@ -121,7 +121,7 @@ def omniquant_global_v3(
     
     optimizer = torch.optim.AdamW(
         [{"params":let_parameters(layers, True),"lr":args.let_lr}, {"params":lwc_parameters(layers),"lr":args.lwc_lr}],weight_decay=args.wd)
-    #scheduler = lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8) 
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.85) 
     if args.epochs > 0:    
         dataset=get_wikitext_for_trainer(lm.tokenizer,seqlen=1024)
         # Freezing the original weights
@@ -146,13 +146,13 @@ def omniquant_global_v3(
                 num_train_epochs= args.epochs,
                 #learning_rate=1e-6,
                 bf16=True,
-                logging_steps=1069,
+                logging_steps=100,
                 output_dir='outputs',
                 save_steps=-1,
                 #weight_decay=1e-5,
             ),
             data_collator=transformers.DataCollatorForLanguageModeling(lm.tokenizer, mlm=False),
-            optimizers = (optimizer,None),
+            optimizers = (optimizer,scheduler),
             
         )
 

@@ -296,7 +296,7 @@ def omniquant_global_v2(
     #pdb.set_trace()
     optimizer = torch.optim.AdamW(
         [{"params":let_parameters(layers, True),"lr":args.let_lr}, {"params":lwc_parameters(layers),"lr":args.lwc_lr}],weight_decay=args.wd)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.8) 
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=800, gamma=0.88) 
     #scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=40, eta_min=1e-5)
     #import pdb;pdb.set_trace()
     if args.epochs > 0:    
@@ -324,7 +324,7 @@ def omniquant_global_v2(
                 #max_steps=args.epochs,
                 #learning_rate=1e-6,
                 bf16=True,
-                logging_steps=1069,
+                logging_steps=100,
                 output_dir='outputs',
                 save_steps=-1,
                 #weight_decay=1e-5,

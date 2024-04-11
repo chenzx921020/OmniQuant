@@ -275,7 +275,7 @@ def omniquant(
             clear_temp_variable(qlayer)
             del optimizer
         #qlayer.half()
-        qlayer=qlayer.to(dtype) # apply to deamp mode
+        #qlayer=qlayer.to(dtype) # apply to deamp mode
         # real smooth and quantization
         smooth_and_quant_inplace(qlayer, args, is_llama)
         if args.epochs>0:
@@ -292,6 +292,7 @@ def omniquant(
         else:
             register_scales_and_zeros(qlayer)
             layers[i] = qlayer.to("cpu")
+        qlayer.half()
         if args.real_quant:
             assert args.wbits in [2,3,4] and args.abits >= 16   # only support weight-only quantization
             named_linears = get_named_linears(qlayer)
