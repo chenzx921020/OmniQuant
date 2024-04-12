@@ -246,17 +246,17 @@ def main():
 
     # debug , casually clear
     # args.model='/data01/ssd/llama2-7b-hf/'
-    # args.epochs=2
-    # args.output_dir='./log/llama--7b-w4a16-global_debug'
+    # args.epochs=10
+    # args.output_dir='./log/llama-7b-w4a16-global_debug'
     # args.eval_ppl=True
     # args.wbits=4
-    # args.abits=8
+    # args.abits=16
     # args.lwc=True
     # args.let=True
     # args.act_scales='./act_scales/llama2-7b.pt'
     # args.act_shifts='./act_shifts/llama2-7b.pt'
     # args.net='Llama-2-7b'
-    # args.train_mode='layer_by_layer'
+    # args.train_mode='global_ft'
     # check
     if args.epochs > 0:
         assert args.lwc or args.let
@@ -395,9 +395,9 @@ def main():
                 logger,
             )
             args.epochs=20
-            args.let_lr=5e-2
-            args.lwc_lr=1e-1
-            args.wd = 1e-5
+            args.let_lr=5e-3
+            args.lwc_lr=1e-2
+            args.wd = 0
             omniquant_global_v3(
                 lm,
                 args,

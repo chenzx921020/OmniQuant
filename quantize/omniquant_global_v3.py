@@ -121,7 +121,8 @@ def omniquant_global_v3(
     
     optimizer = torch.optim.AdamW(
         [{"params":let_parameters(layers, True),"lr":args.let_lr}, {"params":lwc_parameters(layers),"lr":args.lwc_lr}],weight_decay=args.wd)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=500, gamma=0.85) 
+    #scheduler = lr_scheduler.StepLR(optimizer, step_size=600, gamma=0.85) 
+    scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=20000, eta_min=1e-5)
     if args.epochs > 0:    
         dataset=get_wikitext_for_trainer(lm.tokenizer,seqlen=1024)
         # Freezing the original weights

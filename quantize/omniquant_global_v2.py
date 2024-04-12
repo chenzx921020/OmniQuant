@@ -95,7 +95,7 @@ class QuantKDTrainer(Trainer):
         #loss = loss.to(torch.bfloat16)
         #print(f"global loss is: ", loss)
         loss.backward()
-        torch.nn.utils.clip_grad_value_(model.parameters(), clip_value=1.0)
+        #torch.nn.utils.clip_grad_value_(model.parameters(), clip_value=1.0)
         #import pdb;pdb.set_trace()
         self.optimizer.step()
         self.optimizer.zero_grad()
@@ -296,8 +296,8 @@ def omniquant_global_v2(
     #pdb.set_trace()
     optimizer = torch.optim.AdamW(
         [{"params":let_parameters(layers, True),"lr":args.let_lr}, {"params":lwc_parameters(layers),"lr":args.lwc_lr}],weight_decay=args.wd)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=800, gamma=0.88) 
-    #scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=40, eta_min=1e-5)
+    #scheduler = lr_scheduler.StepLR(optimizer, step_size=800, gamma=0.88) 
+    scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=10000, eta_min=1e-6)
     #import pdb;pdb.set_trace()
     if args.epochs > 0:    
         dataset=get_wikitext_for_trainer(lm.tokenizer,seqlen=1024)
@@ -321,10 +321,11 @@ def omniquant_global_v2(
                 gradient_accumulation_steps=1,
                 warmup_steps=100,
                 num_train_epochs= args.epochs,
+                label_smoothing_factor=0.1,
                 #max_steps=args.epochs,
                 #learning_rate=1e-6,
                 bf16=True,
-                logging_steps=100,
+                logging_steps=50,
                 output_dir='outputs',
                 save_steps=-1,
                 #weight_decay=1e-5,
