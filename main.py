@@ -375,7 +375,7 @@ def main():
             #args.epochs=30
             # args.let_lr=5e-2 #5e-6
             # args.lwc_lr=1e-1 #1e-5
-            # args.wd = 5e-5
+            args.wd = 5e-5
             omniquant_global_v2(
                 lm,
                 args,
@@ -394,10 +394,10 @@ def main():
                 act_shifts,
                 logger,
             )
-            args.epochs=20
+            args.epochs=5
             args.let_lr=5e-3
             args.lwc_lr=1e-2
-            args.wd = 0
+            args.wd = 5e-5
             omniquant_global_v3(
                 lm,
                 args,

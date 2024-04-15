@@ -27,12 +27,13 @@ from datautils import get_wikitext_for_trainer
 from torch.utils.checkpoint import checkpoint
 from utils import ampscaler_get_grad_norm
 from torch.optim import lr_scheduler
+import scipy.stats
 #torch.autograd.set_detect_anomaly(True)
 
 def kl_loss(output, target, temperature):
-    output = F.log_softmax(output / temperature, dim=-1)
-    target = F.softmax(target / temperature, dim=-1)
-    return F.kl_div(output, target, reduction="batchmean")
+    outputs = F.log_softmax(output / temperature, dim=-1)
+    targets = F.softmax(target / temperature, dim=-1)
+    return F.kl_div(outputs, targets, reduction="batchmean")
 
 def fp32_16_pre_hook(module, input):
     i = input[0].to(torch.bfloat16) #half()
@@ -71,7 +72,7 @@ class QuantKDTrainer(Trainer):
             torch.cuda.empty_cache()
         #with torch.cuda.amp.autocast():
         outputs = model(**inputs)
-        loss = kl_loss(outputs.logits, raw.logits.detach(), 1)
+        loss = kl_loss(outputs.logits, raw.logits.detach(), 80)
         
         #import pdb;pdb.set_trace()    
         if self.label_smoother is not None and "labels" in inputs:
@@ -95,7 +96,8 @@ class QuantKDTrainer(Trainer):
         #loss = loss.to(torch.bfloat16)
         #print(f"global loss is: ", loss)
         loss.backward()
-        #torch.nn.utils.clip_grad_value_(model.parameters(), clip_value=1.0)
+        #import pdb;pdb.set_trace()
+        torch.nn.utils.clip_grad_value_(model.parameters(), clip_value=1.0)
         #import pdb;pdb.set_trace()
         self.optimizer.step()
         self.optimizer.zero_grad()
@@ -296,8 +298,8 @@ def omniquant_global_v2(
     #pdb.set_trace()
     optimizer = torch.optim.AdamW(
         [{"params":let_parameters(layers, True),"lr":args.let_lr}, {"params":lwc_parameters(layers),"lr":args.lwc_lr}],weight_decay=args.wd)
-    #scheduler = lr_scheduler.StepLR(optimizer, step_size=800, gamma=0.88) 
-    scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=10000, eta_min=1e-6)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=800, gamma=0.85) 
+    #scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=10000, eta_min=1e-6)
     #import pdb;pdb.set_trace()
     if args.epochs > 0:    
         dataset=get_wikitext_for_trainer(lm.tokenizer,seqlen=1024)
@@ -322,7 +324,7 @@ def omniquant_global_v2(
                 warmup_steps=100,
                 num_train_epochs= args.epochs,
                 label_smoothing_factor=0.1,
-                #max_steps=args.epochs,
+                #max_steps=1924,
                 #learning_rate=1e-6,
                 bf16=True,
                 logging_steps=50,
