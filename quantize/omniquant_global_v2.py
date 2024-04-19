@@ -28,6 +28,7 @@ from torch.utils.checkpoint import checkpoint
 from utils import ampscaler_get_grad_norm
 from torch.optim import lr_scheduler
 import scipy.stats
+import numpy as np
 #torch.autograd.set_detect_anomaly(True)
 
 def kl_loss(output, target, temperature):
@@ -58,13 +59,10 @@ class QuantKDTrainer(Trainer):
                 hooks_to_remove.append(h2)
                 module.use_temporary_parameter=False
         
-        #import pdb;pdb.set_trace()
-        with torch.no_grad():
-            raw = model(**inputs)
-        #layers = model.model.layers
-        #import pdb;pdb.set_trace()
+        # with torch.no_grad():
+        #     raw = model(**inputs)
+        
         for i in range(len(model.model.layers)):
-            #import pdb;pdb.set_trace()
             layer = model.model.layers[i]
             layer = layer.to(torch.bfloat16) # half()
             # with torch.cuda.amp.autocast():
@@ -72,28 +70,28 @@ class QuantKDTrainer(Trainer):
             torch.cuda.empty_cache()
         #with torch.cuda.amp.autocast():
         outputs = model(**inputs)
-        loss = kl_loss(outputs.logits, raw.logits.detach(), 80)
-        
-        #import pdb;pdb.set_trace()    
-        if self.label_smoother is not None and "labels" in inputs:
-            labels = inputs.pop("labels")
-        else:
-            labels = None
-        if labels is not None:
-            loss += self.label_smoother(outputs, labels, shift_labels=True)
-        else:
-            if isinstance(outputs, dict) and "loss" not in outputs:
-                raise ValueError(
-                    "The model did not return a loss from the inputs, only the following keys: "
-                    f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
-                )
-            # We don't use .loss here since the model may return tuples instead of ModelOutput.
-            # choose loss
-            loss += outputs["loss"] if isinstance(outputs, dict) else outputs[0]
+        #torch.save(outputs,'./fused_quant_outputs.pth')
+        #loss = kl_loss(outputs.logits, raw.logits.detach(), 500)
+        loss = outputs['loss']
+        # 
+        # loss_func = torch.nn.MSELoss()
+        # loss = loss_func(outputs['logits'],raw['logits'])
+        # if self.label_smoother is not None and "labels" in inputs:
+        #     labels = inputs.pop("labels")
+        # else:
+        #     labels = None
+        # if labels is not None:
+        #     loss += self.label_smoother(outputs, labels, shift_labels=True)
+        # else:
+        #     if isinstance(outputs, dict) and "loss" not in outputs:
+        #         raise ValueError(
+        #             "The model did not return a loss from the inputs, only the following keys: "
+        #             f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
+        #         )
+        #     # We don't use .loss here since the model may return tuples instead of ModelOutput.
+        #     # choose loss
+        #     loss += outputs["loss"] if isinstance(outputs, dict) else outputs[0]
 
-        # loss_scaler = utils.NativeScalerWithGradNormCount()
-        # norm = loss_scaler(loss, self.optimizer,parameters= get_omni_parameters(model, True)).cpu()
-        #loss = loss.to(torch.bfloat16)
         #print(f"global loss is: ", loss)
         loss.backward()
         #import pdb;pdb.set_trace()

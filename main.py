@@ -246,7 +246,7 @@ def main():
 
     # debug , casually clear
     # args.model='/data01/ssd/llama2-7b-hf/'
-    # args.epochs=10
+    # args.epochs=1
     # args.output_dir='./log/llama-7b-w4a16-global_debug'
     # args.eval_ppl=True
     # args.wbits=4
@@ -394,9 +394,9 @@ def main():
                 act_shifts,
                 logger,
             )
-            args.epochs=5
-            args.let_lr=5e-3
-            args.lwc_lr=1e-2
+            args.epochs=10
+            args.let_lr=5e-4
+            args.lwc_lr=1e-3
             args.wd = 5e-5
             omniquant_global_v3(
                 lm,

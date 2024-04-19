@@ -58,10 +58,9 @@ class QuantKDTrainer(Trainer):
                 module.use_temporary_parameter=False
         
         #import pdb;pdb.set_trace()
-        with torch.no_grad():
-            raw = model(**inputs)
-        #layers = model.model.layers
-        #import pdb;pdb.set_trace()
+        # with torch.no_grad():
+        #     raw = model(**inputs)
+
         for i in range(len(model.model.layers)):
             #import pdb;pdb.set_trace()
             layer = model.model.layers[i]
@@ -71,28 +70,26 @@ class QuantKDTrainer(Trainer):
             torch.cuda.empty_cache()
         #with torch.cuda.amp.autocast():
         outputs = model(**inputs)
-        loss = kl_loss(outputs.logits, raw.logits.detach(), 50)
+        loss = outputs['loss']
+        #loss = kl_loss(outputs.logits, raw.logits.detach(), 500)
+        # loss_func = torch.nn.MSELoss()
+        # loss = loss_func(outputs['logits'],raw['logits']) 
+        # if self.label_smoother is not None and "labels" in inputs:
+        #     labels = inputs.pop("labels")
+        # else:
+        #     labels = None
+        # if labels is not None:
+        #     loss += self.label_smoother(outputs, labels, shift_labels=True)
+        # else:
+        #     if isinstance(outputs, dict) and "loss" not in outputs:
+        #         raise ValueError(
+        #             "The model did not return a loss from the inputs, only the following keys: "
+        #             f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
+        #         )
+        #     # We don't use .loss here since the model may return tuples instead of ModelOutput.
+        #     # choose loss
+        #     loss += outputs["loss"] if isinstance(outputs, dict) else outputs[0]
         
-        #import pdb;pdb.set_trace()    
-        if self.label_smoother is not None and "labels" in inputs:
-            labels = inputs.pop("labels")
-        else:
-            labels = None
-        if labels is not None:
-            loss += self.label_smoother(outputs, labels, shift_labels=True)
-        else:
-            if isinstance(outputs, dict) and "loss" not in outputs:
-                raise ValueError(
-                    "The model did not return a loss from the inputs, only the following keys: "
-                    f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
-                )
-            # We don't use .loss here since the model may return tuples instead of ModelOutput.
-            # choose loss
-            loss += outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-        #print(f"global loss is: ",loss)
-        # loss_scaler = utils.NativeScalerWithGradNormCount()
-        # norm = loss_scaler(loss, self.optimizer,parameters= get_omni_parameters(model, True)).cpu()
-        #loss = loss.to(torch.bfloat16)
         loss.backward()
         torch.nn.utils.clip_grad_value_(model.parameters(), clip_value=1.0)
         #import pdb;pdb.set_trace()
