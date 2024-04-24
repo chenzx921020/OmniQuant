@@ -167,7 +167,8 @@ def omniquant_global_v3(
         omni_parameters[i] = omni_state_dict(layer)
         torch.cuda.empty_cache()
         gc.collect()
-    torch.save(omni_parameters, os.path.join(args.output_dir, f"omni_parameters_global_ft.pth"))   
+    torch.save(omni_parameters, os.path.join(args.output_dir, f"omni_parameters_global_ft.pth"))
+    #torch.save(model,os.path.join(args.output_dir, f"model_global_ft.pth"))
     model.to(torch.float16)
 
     return model
