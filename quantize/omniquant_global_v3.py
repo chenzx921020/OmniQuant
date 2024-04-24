@@ -156,7 +156,7 @@ def omniquant_global_v3(
 
         model.config.use_cache = False
         trainer.train()
-
+    omni_parameters = {}
     for i in range(len(model.model.layers)):
         layer = model.model.layers[i]
         clear_temp_variable(layer)
@@ -164,8 +164,10 @@ def omniquant_global_v3(
         smooth_and_quant_inplace_quantrainer(layer)
         #layer=layer.to(torch.float32)
         layer=layer.to("cpu")
+        omni_parameters[i] = omni_state_dict(layer)
         torch.cuda.empty_cache()
-        gc.collect()   
+        gc.collect()
+    torch.save(omni_parameters, os.path.join(args.output_dir, f"omni_parameters_global_ft.pth"))   
     model.to(torch.float16)
 
     return model

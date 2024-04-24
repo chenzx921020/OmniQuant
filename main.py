@@ -97,7 +97,7 @@ def evaluate(lm, args, logger):
 
     if args.eval_ppl:
         # for dataset in ["wikitext2", "ptb", "c4","ptb-new",'c4-new']:
-        for dataset in ["wikitext2"]: #, "c4"]:
+        for dataset in ["wikitext2","c4"]:
             cache_testloader = f'{args.cache_dir}/testloader_{args.model_family}_{dataset}_all.cache'
             if os.path.exists(cache_testloader):
                 testloader = torch.load(cache_testloader)
@@ -224,7 +224,7 @@ def main():
     parser.add_argument("--disable_zero_point",default=False, action="store_true", help="quantization without zero_point")
     parser.add_argument("--a_dynamic_method", type=str, default="per_token", choices=["per_token"])
     parser.add_argument("--w_dynamic_method", type=str, default="per_channel", choices=["per_channel"])
-    parser.add_argument("--train_mode",type=str,default="layer_global_ft",choices=["layer_global_ft", "layer_by_layer", "global_ft"])
+    parser.add_argument("--train_mode",type=str,default="layer_by_layer",choices=["layer_global_ft", "layer_by_layer", "global_ft"])
     parser.add_argument("--limit", type=int, default=-1)
     parser.add_argument("--multigpu", action="store_true", help="at eval, map model to multiple gpus")
     parser.add_argument("--deactive_amp", action="store_true", help="deactivate AMP when 8<=bits<16")
