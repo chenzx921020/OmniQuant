@@ -15,7 +15,7 @@ def set_seed(seed):
 
 def get_pile(nsamples, seed, seqlen, model):
     print("get_pile")
-    traindata = load_dataset("json", data_files='/cpfs01/user/chenmengzhao/prompt_quantization/val.jsonl.zst', split="train")
+    traindata = load_dataset("json", data_files='/data01/user/chenzx/data/val.jsonl.zst', split="train")
 
     tokenizer = AutoTokenizer.from_pretrained(model, use_fast=False)
     trainenc = tokenizer("\n\n".join(traindata['text'][:1000]), return_tensors='pt')
@@ -232,8 +232,46 @@ def get_wikitext_for_trainer(tokenizer,seqlen=1024):
         
         def __getitem__(self, idx):
             encoded=self.encodings[idx].view(-1)
-            # input_ids = encoded['input_ids'].squeeze()
-            # encoded['input_ids'] = input_ids
+            return encoded
+
+    dataset = TextDataset(encoded_samples)
+    return dataset
+
+
+def get_pile_for_trainer(tokenizer,seqlen=1024):
+    data = load_dataset("json", data_files='/data01/user/chenzx/data/val.jsonl.zst', split="train")
+    text=' '.join(data['text'][:1800])
+    import re
+    def split_into_samples(text, max_length=1024):
+        sentences = re.split(r'[.?!]', text)
+        samples = []
+        current_sample = ''
+        
+        for sentence in sentences:
+            potential_sample = current_sample + sentence
+            if len(potential_sample) <= max_length:
+                current_sample = potential_sample
+            else:
+                samples.append(current_sample.strip())
+                current_sample = sentence
+        
+        if current_sample:
+            samples.append(current_sample.strip())
+        
+        return samples
+    samples = split_into_samples(text, max_length=seqlen*10)
+    #import pdb;pdb.set_trace()
+    tokenizer.pad_token=tokenizer.eos_token
+    encoded_samples = [tokenizer.encode(sample, max_length=seqlen, pad_to_max_length=False, return_tensors='pt') for sample in samples]
+    class TextDataset(Dataset):
+        def __init__(self, encodings):
+            self.encodings = encodings
+        
+        def __len__(self):
+            return len(self.encodings)
+        
+        def __getitem__(self, idx):
+            encoded=self.encodings[idx].view(-1)
             return encoded
 
     dataset = TextDataset(encoded_samples)

@@ -23,7 +23,7 @@ except:
 import torch.nn.functional as F
 from transformers import Trainer
 import transformers
-from datautils import get_wikitext_for_trainer
+from datautils import get_wikitext_for_trainer,get_pile_for_trainer
 from torch.utils.checkpoint import checkpoint
 from utils import ampscaler_get_grad_norm
 from torch.optim import lr_scheduler
@@ -248,7 +248,6 @@ def omniquant_global_v2(
     else:
         omni_parameters = {}
     
-        #dataset=get_wikitext_for_trainer(tokenizer,seqlen=1024)
     for i in range(len(layers)):
         logger.info(f"=== Start process layer {i} ===")
         layer = layers[i].to(dev)
@@ -299,8 +298,11 @@ def omniquant_global_v2(
     scheduler = lr_scheduler.StepLR(optimizer, step_size=800, gamma=0.85) 
     #scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=10000, eta_min=1e-6)
     #import pdb;pdb.set_trace()
-    if args.epochs > 0:    
-        dataset=get_wikitext_for_trainer(lm.tokenizer,seqlen=1024)
+    if args.epochs > 0:
+        if args.calib_dataset=='wikitext2':
+            dataset=get_wikitext_for_trainer(lm.tokenizer,seqlen=1024)
+        elif args.calib_dataset=='pile':
+            dataset=get_pile_for_trainer(lm.tokenizer,seqlen=1024)
         # Freezing the original weights
         for name,param in model.named_parameters():
             if "smooth_scale" in name or "smooth_shift" in name:

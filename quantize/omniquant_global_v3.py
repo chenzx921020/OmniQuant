@@ -121,7 +121,10 @@ def omniquant_global_v3(
     scheduler = lr_scheduler.StepLR(optimizer, step_size=800, gamma=0.88) 
     #scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=20000, eta_min=1e-6)
     if args.epochs > 0:    
-        dataset=get_wikitext_for_trainer(lm.tokenizer,seqlen=1024)
+        if args.calib_dataset=='wikitext2':
+            dataset=get_wikitext_for_trainer(lm.tokenizer,seqlen=1024)
+        elif args.calib_dataset=='pile':
+            dataset=get_pile_for_trainer(lm.tokenizer,seqlen=1024)
         # Freezing the original weights
         for name,param in model.named_parameters():
             if "smooth_scale" in name or "smooth_shift" in name:
