@@ -23,7 +23,7 @@ except:
 import torch.nn.functional as F
 from transformers import Trainer
 import transformers
-from datautils import get_wikitext_for_trainer
+from datautils import get_wikitext_for_trainer,get_pile_for_trainer
 from torch.utils.checkpoint import checkpoint
 from utils import ampscaler_get_grad_norm
 from torch.optim import lr_scheduler

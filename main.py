@@ -25,7 +25,9 @@ from models.int_opt_layer import QuantOPTDecoderLayer
 from quantize.int_linear import QuantLinear
 
 import pdb
-
+from lm_eval.evaluate_mmlu import eval_mmlu
+from lm_eval.evaluate_gsm8k import eval_gsm8k
+from lm_eval.evaluate_humaneval import eval_humaneval
 
 torch.backends.cudnn.benchmark = True
 
@@ -148,6 +150,20 @@ def evaluate(lm, args, logger):
             logger.info(f'{dataset} : {ppl.item()}')
             lm.model.config.use_cache = use_cache
             results[dataset] = ppl.item()
+    #else:
+    #mmlu
+    acc = eval_mmlu(lm.model,lm.tokenizer)
+    print("mmlu acc:%.5f\n"%acc)
+    #gsm8k
+    acc = eval_gsm8k(lm.model,lm.tokenizer,1)
+    print("gsm8k acc:%.5f\n"%acc)
+    #humaneval
+    acc = eval_humaneval(lm.model,lm.tokenizer,args.output_dir)
+    print ('just get preds, you should run the human eval: ')
+    print ('python human_eval/evaluate_functional_correctness.py HumanEval_res.json --problem_file=data/HumanEval.json')
+    
+        # #GPQA
+        #dataset = load_dataset("Idavidrein/gpqa")
     if args.tasks != "":
         t_results = evaluator.simple_evaluate(
             lm,
@@ -246,17 +262,19 @@ def main():
 
     # debug , casually clear
     # args.model='/data01/ssd/llama2-7b-hf/'
-    # args.epochs=1
+    # args.epochs=10
     # args.output_dir='./log/llama-7b-w4a16-global_debug'
-    # args.eval_ppl=True
-    # args.wbits=4
-    # args.abits=16
+    # args.eval_ppl=False
+    # #args.tasks = 'gsm8k,math_algebra'
+    # args.wbits=32
+    # args.abits=32
     # args.lwc=True
     # args.let=True
     # args.act_scales='./act_scales/llama2-7b.pt'
     # args.act_shifts='./act_shifts/llama2-7b.pt'
     # args.net='Llama-2-7b'
     # args.train_mode='global_ft'
+    # args.calib_dataset='pile'
     # check
     if args.epochs > 0:
         assert args.lwc or args.let
