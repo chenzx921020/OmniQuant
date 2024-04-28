@@ -28,6 +28,7 @@ import pdb
 from lm_eval.evaluate_mmlu import eval_mmlu
 from lm_eval.evaluate_gsm8k import eval_gsm8k
 from lm_eval.evaluate_humaneval import eval_humaneval
+from lm_eval.evaluate_gpqa import eval_gpqa
 
 torch.backends.cudnn.benchmark = True
 
@@ -98,7 +99,6 @@ def evaluate(lm, args, logger):
 
 
     if args.eval_ppl:
-        # for dataset in ["wikitext2", "ptb", "c4","ptb-new",'c4-new']:
         for dataset in ["wikitext2","c4"]:
             cache_testloader = f'{args.cache_dir}/testloader_{args.model_family}_{dataset}_all.cache'
             if os.path.exists(cache_testloader):
@@ -151,19 +151,20 @@ def evaluate(lm, args, logger):
             lm.model.config.use_cache = use_cache
             results[dataset] = ppl.item()
     #else:
-    #mmlu
+    # #mmlu
     acc = eval_mmlu(lm.model,lm.tokenizer)
     print("mmlu acc:%.5f\n"%acc)
-    #gsm8k
+    # #gsm8k
     acc = eval_gsm8k(lm.model,lm.tokenizer,1)
     print("gsm8k acc:%.5f\n"%acc)
-    #humaneval
+    # #humaneval
     acc = eval_humaneval(lm.model,lm.tokenizer,args.output_dir)
     print ('just get preds, you should run the human eval: ')
     print ('python human_eval/evaluate_functional_correctness.py HumanEval_res.json --problem_file=data/HumanEval.json')
     
-        # #GPQA
-        #dataset = load_dataset("Idavidrein/gpqa")
+    # #GPQA
+    #dataset = load_dataset("Idavidrein/gpqa")
+    # acc = eval_gpqa(lm.model,lm.tokenizer)
     if args.tasks != "":
         t_results = evaluator.simple_evaluate(
             lm,
@@ -261,20 +262,20 @@ def main():
     torch.cuda.manual_seed(args.seed)
 
     # debug , casually clear
-    # args.model='/data01/ssd/llama2-7b-hf/'
-    # args.epochs=10
-    # args.output_dir='./log/llama-7b-w4a16-global_debug'
-    # args.eval_ppl=False
-    # #args.tasks = 'gsm8k,math_algebra'
-    # args.wbits=32
-    # args.abits=32
-    # args.lwc=True
-    # args.let=True
-    # args.act_scales='./act_scales/llama2-7b.pt'
-    # args.act_shifts='./act_shifts/llama2-7b.pt'
-    # args.net='Llama-2-7b'
-    # args.train_mode='global_ft'
-    # args.calib_dataset='pile'
+    #args.model='/data01/ssd/llama2-7b-hf/'
+    #args.epochs=10
+    #args.output_dir='./log/llama-7b-w4a16-global_debug'
+    #args.eval_ppl=False
+    #args.tasks = 'gpqa'
+    #args.wbits=32
+    #args.abits=32
+    #args.lwc=True
+    #args.let=True
+    #args.act_scales='./act_scales/llama2-7b.pt'
+    #args.act_shifts='./act_shifts/llama2-7b.pt'
+    #args.net='Llama-2-7b'
+    #args.train_mode='global_ft'
+    #args.calib_dataset='pile'
     # check
     if args.epochs > 0:
         assert args.lwc or args.let
@@ -412,7 +413,7 @@ def main():
                 act_shifts,
                 logger,
             )
-            args.epochs=10
+            args.epochs=1
             args.let_lr=5e-4
             args.lwc_lr=1e-3
             args.wd = 5e-5

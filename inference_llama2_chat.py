@@ -193,7 +193,7 @@ lm.model.eval()
 for param in lm.model.parameters():
     param.requires_grad = False
 
-ckp = "log/llama-7b-w4a8-global_debug/omni_parameters_global_ft.pth"
+ckp = "./log/llama-7b-w4a8-global_ft_20240424/omni_parameters_global_ft.pth"
 st = torch.load(ckp,map_location="cuda:2")
 print(list(st[0].keys()))
 
@@ -237,6 +237,9 @@ if True:
 
 #evaluate(lm, args, dev)
 lm.model.to(dev)
+
+#chat(lm.model,lm.tokenizer,max_length=128)
+
 
 questions = [
     """请仿照白居易的风格写一首诗。""",

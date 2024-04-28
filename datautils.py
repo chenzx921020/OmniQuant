@@ -240,7 +240,7 @@ def get_wikitext_for_trainer(tokenizer,seqlen=1024):
 
 def get_pile_for_trainer(tokenizer,seqlen=1024):
     data = load_dataset("json", data_files='/data01/user/chenzx/data/val.jsonl.zst', split="train")
-    text=' '.join(data['text'][:1800])
+    text=' '.join(data['text'][:18000])
     import re
     def split_into_samples(text, max_length=1024):
         sentences = re.split(r'[.?!]', text)
